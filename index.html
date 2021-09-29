@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang='en'>
+  <head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    
+    <title>Computed Field Demo</title>
+
+    <style>
+      body {
+        margin: 0px;
+      }
+      .computed-title-basic {
+        width: 100%;
+        padding: 7px;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+        color: rgb(9, 14, 36);
+        font-size: 15px;
+        line-height: 24px;
+      }
+      .computed-title-form {
+        border: 1px solid rgb(218, 222, 237);
+        border-radius: 2px;
+        box-sizing: border-box;
+        box-shadow: rgb(0 0 0 / 5%) 0px 2px 4px;
+      }
+
+    </style>
+
+    <link rel='stylesheet' type='text/css' href='https://fonts.googleapis.com/css?family=Inter:300' />    
+
+    <script src='https://cdn.jsdelivr.net/npm/@graphcms/zoid@9.0.64-alpha.1/lib/zoid.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/@graphcms/uix-sdk@0.1.2/dist/gcuix.umd.production.min.js'></script>    
+    <script>
+      ((props) => {
+
+        const declaration = {
+          config: {
+            FIELDS_TO_CONCATENATE: {
+              type: 'string',
+              displayName: 'Which fields should be concatenated?',
+              description: 'Separate field names with a comma.',
+              required: true,
+            },
+          },
+          extensionType: 'field',
+          fieldType: 'STRING',
+          name: 'Computed Field',
+          description: 'Concatenate fields to create a custom title',
+          features: ['FieldRenderer', 'TableRenderer',],
+        };
+
+        async function init() {
+          try {
+            window.GCUIX.init({
+              declaration,
+              onProps: function(newProps) {
+                props = newProps;
+                updateComputedField();
+              }
+            }).then((initialState) => {
+              props = initialState.props;              
+              if (initialState.status === 'ok') {
+
+                if (props.isTableCell) {
+                  return;
+                }                
+
+                initComputedField();
+                getFieldNames().forEach(item => subscribeToFieldChanges(item));
+
+              }
+            });
+          } catch(error) {
+            console.error('Failed to init extension:', error.message);
+            console.error('- error code:', error.code);
+          }
+        }
+
+        function getFieldNames() {
+          //Create array with field names from extension config
+          const fields = props.extension.config.FIELDS_TO_CONCATENATE.split(','); 
+          return fields;
+        }
+
+        async function subscribeToFieldChanges(fieldname) {
+          await props.form.subscribeToFieldState(fieldname, (state) => updateComputedField(), {
+            // react only to field `value` changes
+            value: true,
+          });          
+        }
+
+        async function concatFieldValueAndFieldName(fieldname) {
+          const fieldstate = await props.form.getFieldState(fieldname);
+          if (fieldstate.value.title) return fieldstate.value.title; //Use title if it exists, this is the case with relation fields
+          if (fieldstate.value) return fieldstate.value + ' ' + fieldname; //Otherwise concatenate value from field with field name
+          return '';
+        }
+
+        async function initComputedField() {
+          const titlefield = document.getElementById('computed-title');
+          titlefield.classList.add('computed-title-form');
+        }
+
+        async function updateComputedField() {
+          const titlefield = document.getElementById('computed-title');
+          const fieldsToConcatenate = getFieldNames();
+          const values = await Promise.all(fieldsToConcatenate.map(item => concatFieldValueAndFieldName(item)));
+          titlefield.innerText = values.join(' ');
+          await props.onChange(values.join(' '));
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+        
+      })();
+      
+    </script>
+  </head>
+  <body>
+    <div id='computed-title' class='computed-title-basic'></div>
+  </body>
+</html>
