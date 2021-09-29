@@ -92,7 +92,7 @@
 
         async function concatFieldValueAndFieldName(fieldname) {
           const fieldstate = await props.form.getFieldState(fieldname);
-          if (fieldstate.value.title) return fieldstate.value.title; //Use title if it exists, this is the case with relation fields
+          if (fieldstate.value && fieldstate.value.title) return fieldstate.value.title; //Use title if it exists, this is the case with relation fields
           if (fieldstate.value) return fieldstate.value + ' ' + fieldname; //Otherwise concatenate value from field with field name
           return '';
         }
