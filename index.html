@@ -17,12 +17,7 @@
         color: rgb(9, 14, 36);
         font-size: 15px;
         line-height: 24px;
-      }
-      .computed-title-form {
-        border: 1px solid rgb(218, 222, 237);
-        border-radius: 2px;
-        box-sizing: border-box;
-        box-shadow: rgb(0 0 0 / 5%) 0px 2px 4px;
+        min-height: 20px;
       }
 
     </style>
@@ -30,45 +25,50 @@
     <link rel='stylesheet' type='text/css' href='https://fonts.googleapis.com/css?family=Inter:300' />    
 
     <script src='https://cdn.jsdelivr.net/npm/@graphcms/zoid@9.0.64-alpha.1/lib/zoid.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/@graphcms/uix-sdk@0.1.2/dist/gcuix.umd.production.min.js'></script>    
+    <script src='https://cdn.jsdelivr.net/npm/@graphcms/uix-sdk@0.1.2/dist/gcuix.umd.production.min.js'></script>
+    <script src='https://unpkg.com/mustache@4.2.0/mustache.min.js'></script>    
     <script>
-      ((props) => {
+      ((props, updating) => {
 
         const declaration = {
           config: {
-            FIELDS_TO_CONCATENATE: {
+            MUSTACHE_INPUT: {
               type: 'string',
-              displayName: 'Which fields should be concatenated?',
-              description: 'Separate field names with a comma.',
+              displayName: 'Computed field template',
+              description: 'Provide a string using the Mustache template format',
               required: true,
-            },
+            },            
           },
           extensionType: 'field',
           fieldType: 'STRING',
           name: 'Computed Field',
-          description: 'Concatenate fields to create a custom title',
+          description: 'Create a computed title using values from other fields',
           features: ['FieldRenderer', 'TableRenderer',],
         };
 
         async function init() {
+
+          updating = false;
+
           try {
             window.GCUIX.init({
               declaration,
               onProps: function(newProps) {
-                props = newProps;
-                updateComputedField();
+                props = newProps;            
+
+                updateTitle();                
+
               }
-            }).then((initialState) => {
+            }).then(async (initialState) => {
               props = initialState.props;              
               if (initialState.status === 'ok') {
 
                 if (props.isTableCell) {
                   return;
-                }                
+                }
 
-                initComputedField();
-                getFieldNames().forEach(item => subscribeToFieldChanges(item));
-
+                subscribeToAllFieldChanges();
+                
               }
             });
           } catch(error) {
@@ -77,37 +77,46 @@
           }
         }
 
-        function getFieldNames() {
-          //Create array with field names from extension config
-          const fields = props.extension.config.FIELDS_TO_CONCATENATE.split(','); 
-          return fields;
+        async function getFieldNames() {
+          const formState = await props.form.getState();
+          const fieldnames = Object.keys(formState.initialValues);
+          fieldnames.splice(fieldnames.indexOf(props.name),1);
+          return fieldnames;
         }
 
         async function subscribeToFieldChanges(fieldname) {
-          await props.form.subscribeToFieldState(fieldname, (state) => updateComputedField(), {
+          await props.form.subscribeToFieldState(fieldname, (state) => updateTitle(), {
             // react only to field `value` changes
             value: true,
           });          
         }
 
-        async function concatFieldValueAndFieldName(fieldname) {
-          const fieldstate = await props.form.getFieldState(fieldname);
-          if (fieldstate.value && fieldstate.value.title) return fieldstate.value.title; //Use title if it exists, this is the case with relation fields
-          if (fieldstate.value) return fieldstate.value + ' ' + fieldname; //Otherwise concatenate value from field with field name
-          return '';
+        async function subscribeToAllFieldChanges() {
+          const fieldnames = await getFieldNames();
+          if (fieldnames) fieldnames.forEach(item => subscribeToFieldChanges(item));
         }
 
-        async function initComputedField() {
-          const titlefield = document.getElementById('computed-title');
-          titlefield.classList.add('computed-title-form');
+        async function getFieldValues() {
+          const fieldnames = await getFieldNames();
+          if (!fieldnames) return {};
+          let values = {};
+          for (i = 0; i < fieldnames.length; i++) {
+            const fieldstate = await props.form.getFieldState(fieldnames[i]);
+            if (fieldstate) values[fieldnames[i]] = fieldstate.value;
+          }
+          return values;
         }
 
-        async function updateComputedField() {
+        async function updateTitle() {
+          if (updating) return;
+          updating = true;
+          const values = await getFieldValues();
+          const input = props.extension.config.MUSTACHE_INPUT;
+          var output = Mustache.render(input, values);
           const titlefield = document.getElementById('computed-title');
-          const fieldsToConcatenate = getFieldNames();
-          const values = await Promise.all(fieldsToConcatenate.map(item => concatFieldValueAndFieldName(item)));
-          titlefield.innerText = values.join(' ');
-          await props.onChange(values.join(' '));
+          titlefield.innerText = output;
+          await props.onChange(output);
+          updating = false;
         }
 
         document.addEventListener('DOMContentLoaded', init);
