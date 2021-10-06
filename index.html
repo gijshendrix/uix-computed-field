@@ -19,6 +19,10 @@
         line-height: 24px;
         min-height: 20px;
       }
+      .computed-title-table {
+        font-size: 13px;
+        line-height: 24px;         
+      }
 
     </style>
 
@@ -56,7 +60,7 @@
               onProps: function(newProps) {
                 props = newProps;            
 
-                updateTitle();                
+                renderTitle();                
 
               }
             }).then(async (initialState) => {
@@ -64,6 +68,7 @@
               if (initialState.status === 'ok') {
 
                 if (props.isTableCell) {
+                  console.log('table cell');
                   return;
                 }
 
@@ -79,7 +84,7 @@
 
         async function getFieldNames() {
           const formState = await props.form.getState();
-          const fieldnames = Object.keys(formState.initialValues);
+          const fieldnames = (formState && formState.modified) ? Object.keys(formState.modified) : [];
           fieldnames.splice(fieldnames.indexOf(props.name),1);
           return fieldnames;
         }
@@ -107,14 +112,21 @@
           return values;
         }
 
+        async function renderTitle() {
+          if (!props || !props.value) return;
+          const titlefield = document.getElementById('computed-title');
+          if (props.isTableCell) titlefield.classList.add('computed-title-table');
+          titlefield.innerText = props.value;
+        }
+
         async function updateTitle() {
           if (updating) return;
           updating = true;
           const values = await getFieldValues();
           const input = props.extension.config.MUSTACHE_INPUT;
           var output = Mustache.render(input, values);
-          const titlefield = document.getElementById('computed-title');
-          titlefield.innerText = output;
+          //const titlefield = document.getElementById('computed-title');
+          //titlefield.innerText = output;
           await props.onChange(output);
           updating = false;
         }
