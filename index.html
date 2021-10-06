@@ -68,7 +68,6 @@
               if (initialState.status === 'ok') {
 
                 if (props.isTableCell) {
-                  console.log('table cell');
                   return;
                 }
 
@@ -109,6 +108,7 @@
             const fieldstate = await props.form.getFieldState(fieldnames[i]);
             if (fieldstate) values[fieldnames[i]] = fieldstate.value;
           }
+          
           return values;
         }
 
@@ -125,8 +125,6 @@
           const values = await getFieldValues();
           const input = props.extension.config.MUSTACHE_INPUT;
           var output = Mustache.render(input, values);
-          //const titlefield = document.getElementById('computed-title');
-          //titlefield.innerText = output;
           await props.onChange(output);
           updating = false;
         }
