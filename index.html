@@ -35,7 +35,7 @@
       ((props, updating) => {
 
         const declaration = {
-          config: {
+          fieldConfig: {
             MUSTACHE_INPUT: {
               type: 'string',
               displayName: 'Computed field template',
@@ -58,7 +58,7 @@
             window.GCUIX.init({
               declaration,
               onProps: function(newProps) {
-                props = newProps;            
+                props = newProps;     
 
                 renderTitle();                
 
@@ -123,7 +123,7 @@
           if (updating) return;
           updating = true;
           const values = await getFieldValues();
-          const input = props.extension.config.MUSTACHE_INPUT;
+          const input = props.fieldConfig.MUSTACHE_INPUT;
           var output = Mustache.render(input, values);
           await props.onChange(output);
           updating = false;
