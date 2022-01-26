@@ -4,22 +4,28 @@
     <meta charset='utf-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1'>
     
-    <title>Computed Field Demo</title>
+    <title>Subcategory Field Demo</title>
 
     <style>
       body {
         margin: 0px;
       }
       .computed-value-basic {
-        width: 100%;
         padding: 7px;
         font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
-        color: rgb(9, 14, 36);
         font-size: 15px;
         line-height: 24px;
         min-height: 20px;
       }
+      .computed-value-form {
+        color: rgb(123, 147, 164);
+        background-color: rgb(240, 242, 247);
+        border: 1px solid rgb(218, 222, 237);
+        border-radius: 2px;
+      }
       .computed-value-table {
+        color: rgb(9, 14, 36);
+        background: none;
         font-size: 13px;
         line-height: 24px;         
       }
@@ -30,23 +36,22 @@
 
     <script src='https://cdn.jsdelivr.net/npm/@graphcms/zoid@9.0.64-alpha.1/lib/zoid.min.js'></script>
     <script src='https://cdn.jsdelivr.net/npm/@graphcms/uix-sdk@0.1.2/dist/gcuix.umd.production.min.js'></script>
-    <script src='https://unpkg.com/mustache@4.2.0/mustache.min.js'></script>    
     <script>
       ((props, updating) => {
 
         const declaration = {
           fieldConfig: {
-            MUSTACHE_INPUT: {
+            INPUT_FIELD: {
               type: 'string',
-              displayName: 'Computed field template',
-              description: 'Provide a string using the Mustache template format',
-              required: true,
-            },            
+              displayName: 'Product category input field',
+              description: 'Provide the apiId for the input field',
+              required: false,
+            },           
           },
           extensionType: 'field',
           fieldType: 'STRING',
-          name: 'Computed Field',
-          description: 'Create a computed field using values from other fields',
+          name: 'Subcategory Field',
+          description: 'Automatically calculated product subcategory based on product category field',
           features: ['FieldRenderer', 'TableRenderer',],
         };
 
@@ -71,7 +76,7 @@
                   return;
                 }
 
-                subscribeToAllFieldChanges();
+                subscribeToFieldChanges(props.fieldConfig.INPUT_FIELD);
                 
               }
             });
@@ -81,13 +86,6 @@
           }
         }
 
-        async function getFieldNames() {
-          const formState = await props.form.getState();
-          const fieldnames = (formState && formState.modified) ? Object.keys(formState.modified) : [];
-          fieldnames.splice(fieldnames.indexOf(props.name),1);
-          return fieldnames;
-        }
-
         async function subscribeToFieldChanges(fieldname) {
           await props.form.subscribeToFieldState(fieldname, (state) => updateValue(), {
             // react only to field `value` changes
@@ -95,37 +93,39 @@
           });          
         }
 
-        async function subscribeToAllFieldChanges() {
-          const fieldnames = await getFieldNames();
-          if (fieldnames) fieldnames.forEach(item => subscribeToFieldChanges(item));
+        async function getFieldValue(fieldname) {
+          const fieldstate = await props.form.getFieldState(fieldname);
+          if (fieldstate) return fieldstate.value;
+          return "";
         }
-
-        async function getFieldValues() {
-          const fieldnames = await getFieldNames();
-          if (!fieldnames) return {};
-          let values = {};
-          for (i = 0; i < fieldnames.length; i++) {
-            const fieldstate = await props.form.getFieldState(fieldnames[i]);
-            if (fieldstate) values[fieldnames[i]] = fieldstate.value;
+        
+        function getOutputValue(inputvalue) {
+          switch (inputvalue) {
+            case "a":
+              return "aaa";
+            case "b":
+              return "bbb";
+            case "c":
+              return "ccc";
+            default:
+              return "Value not found";
           }
-          
-          return values;
-        }
+        }        
 
-        async function renderValue() {
-          if (!props || !props.value) return;
+        async function renderValue() {          
           const computedvalue = document.getElementById('computed-value');
           if (props.isTableCell) computedvalue.classList.add('computed-value-table');
+          else computedvalue.classList.add('computed-value-form');
+          if (!props || !props.value) return;
           computedvalue.innerText = props.value;
         }
 
         async function updateValue() {
           if (updating) return;
           updating = true;
-          const values = await getFieldValues();
-          const input = props.fieldConfig.MUSTACHE_INPUT;
-          var output = Mustache.render(input, values);
-          await props.onChange(output);
+          const inputvalue = await getFieldValue(props.fieldConfig.INPUT_FIELD);
+          const outputvalue = getOutputValue(inputvalue);
+          if (inputvalue && inputvalue.length) await props.onChange(outputvalue);
           updating = false;
         }
 
@@ -139,3 +139,4 @@
     <div id='computed-value' class='computed-value-basic'></div>
   </body>
 </html>
+
